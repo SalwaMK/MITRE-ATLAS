@@ -1,0 +1,464 @@
+format-version: "6.0.0"
+
+collection:
+  name: ATLAS
+  description: Adversarial Threat Landscape for AI Systems
+  id: ATLAS-collection
+  object-type: collection
+
+matrix:
+  name: ATLAS Matrix
+  id: ATLAS-matrix
+  object-type: matrix
+
+tactics:
+  AML.TA0002:
+    name: Reconnaissance
+    description: >
+      The adversary is attempting to gather information about an AI
+      system to use it to inform future operations.
+    id: AML.TA0002
+    object-type: tactic
+
+  AML.TA0004:
+    name: ML Model Access
+    description: >
+      The adversary is attempting to gain access to an AI system,
+      such as through inference APIs or direct artifact access.
+    id: AML.TA0004
+    object-type: tactic
+
+  AML.TA0010:
+    name: ML Attack Staging
+    description: >
+      The adversary is leveraging information and access gained to
+      prepare a staged attack against the target system.
+    id: AML.TA0010
+    object-type: tactic
+
+  AML.TA0008:
+    name: Exfiltration
+    description: >
+      The adversary is trying to steal data, models, or other
+      artifacts from an AI system.
+    id: AML.TA0008
+    object-type: tactic
+
+  AML.TA0015:
+    name: Command and Control
+    description: >
+      The adversary is attempting to communicate with and control
+      a compromised AI agent or system.
+    id: AML.TA0015
+    object-type: tactic
+
+techniques:
+  AML.T0005:
+    name: Discover ML Artifacts
+    description: >
+      Adversaries search public sources, including repositories,
+      documentation, and APIs, to discover ML artifacts such as
+      datasets, models, and code.
+    platforms: [Predictive AI, Generative AI]
+    maturity: Demonstrated
+    id: AML.T0005
+    object-type: technique
+
+  AML.T0040:
+    name: ML Model Inference API Access
+    description: >
+      Adversaries gain access to a model via its inference API,
+      allowing them to send inputs and receive outputs.
+    platforms: [Predictive AI, Generative AI]
+    maturity: Demonstrated
+    id: AML.T0040
+    object-type: technique
+
+  AML.T0051:
+    name: LLM Prompt Injection
+    description: >
+      Adversaries craft malicious prompts to manipulate the
+      behavior of an LLM, causing it to ignore prior instructions
+      or perform unintended actions.
+    platforms: [Generative AI]
+    maturity: Demonstrated
+    id: AML.T0051
+    object-type: technique
+
+  AML.T0051.000:
+    name: Direct
+    description: >
+      The adversary directly inputs malicious prompts to the LLM
+      via the standard user interface or API.
+    platforms: [Generative AI]
+    maturity: Demonstrated
+    id: AML.T0051.000
+    object-type: technique
+
+  AML.T0054:
+    name: LLM Indirect Prompt Injection (RAG)
+    description: >
+      Adversaries embed malicious instructions in content that is
+      later retrieved by a RAG-based assistant and injected into
+      the model's context window.
+    platforms: [Generative AI]
+    maturity: Demonstrated
+    id: AML.T0054
+    object-type: technique
+
+  AML.T0020:
+    name: Poison Training Data
+    description: >
+      Adversaries tamper with training, fine-tuning, or RAG-source
+      data to introduce vulnerabilities or bias into the model.
+    platforms: [Predictive AI, Generative AI]
+    maturity: Demonstrated
+    id: AML.T0020
+    object-type: technique
+
+  AML.T0024:
+    name: Exfiltration via ML Inference API
+    description: >
+      Adversaries repeatedly query a model's inference API to
+      reconstruct (steal) the model or extract training data.
+    platforms: [Predictive AI, Generative AI]
+    maturity: Demonstrated
+    id: AML.T0024
+    object-type: technique
+
+  AML.T0086:
+    name: AI Agent Tool Invocation
+    description: >
+      Adversaries leverage a compromised AI agent's connected
+      tools to exfiltrate data or take unauthorized actions.
+    platforms: [Generative AI]
+    maturity: Demonstrated
+    id: AML.T0086
+    object-type: technique
+
+mitigations:
+  AML.M0001:
+    name: Limit Model Artifact Release
+    description: >
+      Restrict public release of model artifacts, architectures,
+      and documentation to reduce reconnaissance opportunities.
+    lifecycle-phases:
+      - Model Deployment
+    categories:
+      - AI Governance
+    id: AML.M0001
+    object-type: mitigation
+
+  AML.M0002:
+    name: Passive ML Output Obfuscation
+    description: >
+      Obfuscate or limit the precision of model outputs (e.g.
+      confidence scores) returned via inference APIs.
+    lifecycle-phases:
+      - Model Deployment
+      - ML Model Operations
+    categories:
+      - Model Hardening
+    id: AML.M0002
+    object-type: mitigation
+
+  AML.M0004:
+    name: Restrict Number of ML Model Queries
+    description: >
+      Apply rate limiting and anomaly detection on inference API
+      access to slow down model extraction attempts.
+    lifecycle-phases:
+      - ML Model Operations
+    categories:
+      - ML Operations Security
+    id: AML.M0004
+    object-type: mitigation
+
+  AML.M0015:
+    name: Sanitize Training Data
+    description: >
+      Validate and sanitize training, fine-tuning, and RAG-source
+      data to detect poisoning attempts before ingestion.
+    lifecycle-phases:
+      - Data Collection
+      - Data Processing
+    categories:
+      - Data Quality
+    id: AML.M0015
+    object-type: mitigation
+
+  AML.M0021:
+    name: Restrict LLM Prompt Inputs / Sanitize Retrieved Content
+    description: >
+      Filter, validate, and sanitize user prompts and retrieved
+      context passed into an LLM's input window, including
+      content fetched for RAG.
+    lifecycle-phases:
+      - ML Model Operations
+    categories:
+      - Model Hardening
+    id: AML.M0021
+    object-type: mitigation
+
+  AML.M0024:
+    name: AI Agent Tool Permission Scoping
+    description: >
+      Restrict the scope and privileges of tools available to an
+      AI agent to the minimum required for its task.
+    lifecycle-phases:
+      - Model Deployment
+      - ML Model Operations
+    categories:
+      - AI Governance
+    id: AML.M0024
+    object-type: mitigation
+
+case-studies:
+  AML.CS0001:
+    name: Bypassing Cylance's AI Malware Detection
+    description: >
+      Researchers appended strings from a benign game executable to
+      malware samples, causing Cylance's ML-based antivirus to
+      misclassify the malware as benign.
+    type: Incident
+    id: AML.CS0001
+    object-type: case-study
+
+  AML.CS0002:
+    name: Extraction of a Production ML Model via API
+    description: >
+      An adversary issued a large number of crafted queries to a
+      production model's inference API and used the responses to
+      train a substitute model with similar behavior.
+    type: Incident
+    id: AML.CS0002
+    object-type: case-study
+
+  AML.CS0012:
+    name: Morris II Worm
+    description: >
+      A self-replicating prompt was embedded in email content. When a
+      RAG-based email assistant retrieved the email, the embedded
+      prompt caused the assistant to leak PII and propagate the
+      malicious prompt to other contacts.
+    type: Incident
+    id: AML.CS0012
+    object-type: case-study
+
+  AML.CS0013:
+    name: ShadowRay
+    description: >
+      Attackers exploited an exposed Ray dashboard API on production
+      AI workloads, gaining access to credentials, tokens, and
+      internal services.
+    type: Incident
+    id: AML.CS0013
+    object-type: case-study
+
+relationships:
+  ATLAS-matrix:
+    sequences:
+      - position: 1
+        source: ATLAS-matrix
+        target: AML.TA0002
+        relationship-type: sequences
+      - position: 2
+        source: ATLAS-matrix
+        target: AML.TA0004
+        relationship-type: sequences
+      - position: 3
+        source: ATLAS-matrix
+        target: AML.TA0010
+        relationship-type: sequences
+      - position: 4
+        source: ATLAS-matrix
+        target: AML.TA0008
+        relationship-type: sequences
+      - position: 5
+        source: ATLAS-matrix
+        target: AML.TA0015
+        relationship-type: sequences
+
+  AML.T0005:
+    achieves:
+      - source: AML.T0005
+        target: AML.TA0002
+        relationship-type: achieves
+
+  AML.T0040:
+    achieves:
+      - source: AML.T0040
+        target: AML.TA0004
+        relationship-type: achieves
+
+  AML.T0051:
+    achieves:
+      - source: AML.T0051
+        target: AML.TA0010
+        relationship-type: achieves
+
+  AML.T0051.000:
+    specializes:
+      - source: AML.T0051.000
+        target: AML.T0051
+        relationship-type: specializes
+    achieves:
+      - source: AML.T0051.000
+        target: AML.TA0010
+        relationship-type: achieves
+
+  AML.T0054:
+    achieves:
+      - source: AML.T0054
+        target: AML.TA0010
+        relationship-type: achieves
+
+  AML.T0020:
+    achieves:
+      - source: AML.T0020
+        target: AML.TA0010
+        relationship-type: achieves
+
+  AML.T0024:
+    achieves:
+      - source: AML.T0024
+        target: AML.TA0008
+        relationship-type: achieves
+
+  AML.T0086:
+    achieves:
+      - source: AML.T0086
+        target: AML.TA0008
+        relationship-type: achieves
+      - source: AML.T0086
+        target: AML.TA0015
+        relationship-type: achieves
+
+  AML.M0001:
+    mitigates:
+      - source: AML.M0001
+        target: AML.T0005
+        relationship-type: mitigates
+
+  AML.M0002:
+    mitigates:
+      - source: AML.M0002
+        target: AML.T0024
+        relationship-type: mitigates
+      - source: AML.M0002
+        target: AML.T0040
+        relationship-type: mitigates
+
+  AML.M0004:
+    mitigates:
+      - source: AML.M0004
+        target: AML.T0024
+        relationship-type: mitigates
+
+  AML.M0015:
+    mitigates:
+      - source: AML.M0015
+        target: AML.T0020
+        relationship-type: mitigates
+
+  AML.M0021:
+    mitigates:
+      - source: AML.M0021
+        target: AML.T0051
+        relationship-type: mitigates
+      - source: AML.M0021
+        target: AML.T0054
+        relationship-type: mitigates
+      - source: AML.M0021
+        target: AML.T0051.000
+        relationship-type: mitigates
+
+  AML.M0024:
+    mitigates:
+      - source: AML.M0024
+        target: AML.T0086
+        relationship-type: mitigates
+
+  AML.CS0001:
+    employs:
+      - source: AML.CS0001
+        target: AML.T0005
+        tactic: AML.TA0002
+        step-id: S00
+        leads-to: []
+        description: >
+          Researchers studied the properties of files known to be
+          scored as benign by the target model.
+        relationship-type: employs
+
+  AML.CS0002:
+    employs:
+      - source: AML.CS0002
+        target: AML.T0005
+        tactic: AML.TA0002
+        step-id: S00
+        leads-to: [S01]
+        description: >
+          The adversary searched public repositories and technical
+          documentation to locate the target model's inference API.
+        relationship-type: employs
+      - source: AML.CS0002
+        target: AML.T0040
+        tactic: AML.TA0004
+        step-id: S01
+        leads-to: [S02]
+        description: >
+          The adversary obtained access to the target model through
+          its public inference API.
+        relationship-type: employs
+      - source: AML.CS0002
+        target: AML.T0024
+        tactic: AML.TA0008
+        step-id: S02
+        leads-to: []
+        description: >
+          The adversary queried the API extensively to reconstruct
+          the model's decision boundaries.
+        relationship-type: employs
+
+  AML.CS0012:
+    employs:
+      - source: AML.CS0012
+        target: AML.T0054
+        tactic: AML.TA0010
+        step-id: S00
+        leads-to: [S01]
+        description: >
+          The malicious prompt was embedded in email content later
+          retrieved by the RAG-based assistant's context pipeline.
+        relationship-type: employs
+      - source: AML.CS0012
+        target: AML.T0086
+        tactic: AML.TA0008
+        step-id: S01
+        leads-to: []
+        description: >
+          The compromised agent used its connected email tool to
+          exfiltrate PII and propagate the payload.
+        relationship-type: employs
+
+  AML.CS0013:
+    employs:
+      - source: AML.CS0013
+        target: AML.T0040
+        tactic: AML.TA0004
+        step-id: S00
+        leads-to: [S01]
+        description: >
+          Attackers accessed an exposed inference/management API on
+          a production AI workload.
+        relationship-type: employs
+      - source: AML.CS0013
+        target: AML.T0024
+        tactic: AML.TA0008
+        step-id: S01
+        leads-to: []
+        description: >
+          Attackers exfiltrated credentials, tokens, and internal data
+          from the compromised workload.
+        relationship-type: employs
