@@ -14,6 +14,7 @@ from neo4j import GraphDatabase
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "queries"))
 import assess
+import draft
 
 import queries
 
@@ -68,6 +69,7 @@ with st.sidebar:
             "🛡️  Coverage Analysis",
             "📊  Tactic Overview",
             "🤖  Threat Assessment",
+            "📄  Report Generator",
         ],
         label_visibility="collapsed",
     )
@@ -567,6 +569,114 @@ elif page == "🤖  Threat Assessment":
                 file_name="atlas_assessment.json",
                 mime="application/json",
             )
+
+# ─── Report Generator ───────────────────────────────────────────────────────
+elif page == "📄  Report Generator":
+    st.title("📄 Threat Model Report Generator")
+    st.markdown(
+        "Describe your AI system and generate a **formal, citable threat-modelling report** "
+        "grounded in the live ATLAS knowledge graph. Every technique, mitigation, and "
+        "case study referenced in the report is traceable to a real graph node."
+    )
+    st.divider()
+
+    with st.sidebar:
+        st.divider()
+        rg_key = st.text_input(
+            "🔑 Groq API key",
+            type="password",
+            value=os.getenv("GROQ_API_KEY", ""),
+            key="rg_groq_key",
+            help="Get a free key at console.groq.com",
+        )
+        rg_model = st.selectbox(
+            "Model",
+            [
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant",
+                "mixtral-8x7b-32768",
+            ],
+            key="rg_model",
+        )
+        rg_max_t = st.slider("Max techniques", 3, 12, 8, key="rg_max_t")
+
+    system_desc_rg = st.text_area(
+        "System description",
+        placeholder=(
+            "e.g. A RAG-based customer support chatbot backed by GPT-4o. "
+            "It retrieves context from an internal knowledge base, has access "
+            "to a CRM tool, and is accessible to external users via a web form."
+        ),
+        height=160,
+        key="rg_desc",
+    )
+
+    if st.button("Generate Report", type="primary", disabled=not system_desc_rg.strip()):
+        if not rg_key:
+            st.error("Enter your Groq API key in the sidebar.")
+        else:
+            with st.spinner("Generating report (3 steps — this takes ~15 s)..."):
+                try:
+                    st.session_state["rg_result"] = draft.draft_report(
+                        system_desc_rg,
+                        driver=driver,
+                        api_key=rg_key,
+                        model=rg_model,
+                        max_techniques=rg_max_t,
+                    )
+                except Exception as e:
+                    st.error(f"Report generation failed: {e}")
+                    st.stop()
+
+    # ── Results persist via session_state ────────────────────────────────────
+    if "rg_result" in st.session_state:
+        result = st.session_state["rg_result"]
+        techniques = result["techniques"]
+        mitigations = result["mitigations"]
+        case_studies = result["case_studies"]
+        gaps = result["gaps"]
+
+        st.divider()
+
+        # Stats row
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Techniques identified", len(techniques))
+        c2.metric("Mitigations found", sum(len(v) for v in mitigations.values()))
+        c3.metric("Case studies cited", sum(len(v) for v in case_studies.values()))
+        c4.metric("Coverage gaps", len(gaps))
+
+        if gaps:
+            st.warning(
+                f"⚠️ {len(gaps)} technique(s) have no documented mitigation: "
+                + ", ".join(f"`{g}`" for g in gaps)
+            )
+
+        st.divider()
+        st.subheader("Report Preview")
+        st.markdown(result["markdown"], unsafe_allow_html=False)
+
+        # ── Download buttons ──────────────────────────────────────────────────
+        st.divider()
+        dl1, dl2, dl3 = st.columns(3)
+        dl1.download_button(
+            "⬇️ Download Markdown",
+            data=result["markdown"],
+            file_name="atlas_threat_model.md",
+            mime="text/markdown",
+        )
+        dl2.download_button(
+            "⬇️ Download JSON",
+            data=json.dumps(result, indent=2),
+            file_name="atlas_threat_model.json",
+            mime="application/json",
+        )
+        dl3.download_button(
+            "⬇️ Download PDF",
+            data=bytes(draft.markdown_to_pdf(result["markdown"])),
+            file_name="atlas_threat_model.pdf",
+            mime="application/pdf",
+        )
+
 
 # ─── Tactic Overview ──────────────────────────────────────────────────────────
 elif page == "📊  Tactic Overview":
