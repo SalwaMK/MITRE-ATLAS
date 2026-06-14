@@ -26,18 +26,20 @@ from typing import Optional
 
 from groq import Groq
 
-_SYSTEM_PROMPT = """\
-You are a cybersecurity expert specialising in threats to AI and ML systems,
-using the MITRE ATLAS framework.
+_SYSTEM_PROMPT_STEP_1 = """\
+You are a cybersecurity expert. Given an AI system description, select up to 15 relevant 
+MITRE ATLAS technique IDs from the provided catalogue.
+Return ONLY valid JSON: {"candidate_ids": ["AML.T0000", ...]}
+"""
 
-Given a plain-text description of an AI system, identify the most relevant
-ATLAS techniques an adversary could use to attack it.
+_SYSTEM_PROMPT_STEP_2 = """\
+You are a cybersecurity expert. Given an AI system description and the OFFICIAL definitions 
+of relevant MITRE ATLAS techniques, generate a structured threat assessment.
 
 Rules:
-- Only reference technique IDs that appear in the provided catalogue.
-- Select techniques directly applicable to the described system architecture.
-- Write 1–2 sentences of reasoning per technique.
-- Return valid JSON only — no markdown fences, no preamble.
+- Only reference techniques provided in the context.
+- Write 1-2 sentences of reasoning per technique.
+- Return valid JSON only.
 
 Output schema:
 {
@@ -52,13 +54,11 @@ Output schema:
   ],
   "summary": "One paragraph overall risk assessment."
 }
-
 risk values: high | medium | low
 """
 
-
-def _context_from_graph(driver) -> str:
-    """Pull the live technique catalogue from Neo4j, grouped by tactic."""
+def _context_from_graph_short(driver) -> str:
+    """Pull the live technique catalogue list from Neo4j, without descriptions."""
     with driver.session() as s:
         rows = s.run("""
             MATCH (t)-[:BELONGS_TO]->(ta:Tactic)
@@ -77,6 +77,26 @@ def _context_from_graph(driver) -> str:
     return "\n".join(lines)
 
 
+def _get_detailed_techniques(driver, technique_ids: list[str]) -> str:
+    """Fetch full descriptions for the specified technique IDs."""
+    if not driver:
+        # Fallback if no driver
+        return "\n".join(f"- {tid}" for tid in technique_ids)
+        
+    with driver.session() as s:
+        rows = s.run("""
+            MATCH (t)
+            WHERE (t:Technique OR t:SubTechnique) AND t.id IN $ids
+            RETURN t.id AS id, t.name AS name, t.description AS description
+        """, ids=technique_ids).data()
+        
+    lines = []
+    for r in rows:
+        desc = (r.get('description') or 'No description available.').strip()
+        lines.append(f"ID: {r['id']}\nName: {r['name']}\nDescription: {desc}\n")
+    return "\n".join(lines)
+
+
 def assess_threat(
     system_description: str,
     driver=None,
@@ -85,46 +105,58 @@ def assess_threat(
     max_techniques: int = 10,
 ) -> dict:
     """
-    Generate a structured ATLAS threat assessment for an AI system.
-
-    Args:
-        system_description: Plain-text description of the system to assess.
-        driver:             Neo4j driver (recommended). Pulls the full live
-                            technique catalogue. Falls back to a built-in list
-                            if omitted.
-        api_key:            Groq API key. Falls back to GROQ_API_KEY env var.
-        model:              Groq model ID.
-        max_techniques:     How many techniques to return (max).
-
-    Returns:
-        dict:
-            "techniques" — list of {id, name, tactic, risk, reason}
-            "summary"    — overall risk narrative (str)
+    Generate a structured ATLAS threat assessment for an AI system using a 2-step RAG pipeline.
     """
     key = api_key or os.getenv("GROQ_API_KEY")
     if not key:
         raise ValueError("Groq API key required. Pass api_key= or set GROQ_API_KEY.")
 
-    catalogue = _context_from_graph(driver) if driver else _BUILTIN_CATALOGUE
+    client = Groq(api_key=key)
+    
+    # ── Step 1: Candidate Selection ────────────────────────────────────────────────────────
+    catalogue_short = _context_from_graph_short(driver) if driver else _BUILTIN_CATALOGUE
+    user_msg_1 = (
+        f"ATLAS technique catalogue:\n{catalogue_short}\n\n"
+        f"System description:\n{system_description}\n\n"
+    )
 
-    user_msg = (
-        f"ATLAS technique catalogue:\n{catalogue}\n\n"
+    resp_1 = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT_STEP_1},
+            {"role": "user", "content": user_msg_1},
+        ],
+        temperature=0.1,
+        response_format={"type": "json_object"},
+    )
+    
+    try:
+        candidates = json.loads(resp_1.choices[0].message.content).get("candidate_ids", [])
+    except Exception:
+        candidates = []
+        
+    if not candidates:
+        return {"techniques": [], "summary": "No relevant techniques identified."}
+
+    # ── Step 2: Detailed Assessment ────────────────────────────────────────────────────────
+    detailed_context = _get_detailed_techniques(driver, candidates)
+    user_msg_2 = (
+        f"Candidate Techniques Context:\n{detailed_context}\n\n"
         f"System description:\n{system_description}\n\n"
         f"Return the {max_techniques} most relevant techniques for this system."
     )
-
-    client = Groq(api_key=key)
-    response = client.chat.completions.create(
+    
+    resp_2 = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_msg},
+            {"role": "system", "content": _SYSTEM_PROMPT_STEP_2},
+            {"role": "user", "content": user_msg_2},
         ],
         temperature=0.2,
         response_format={"type": "json_object"},
     )
 
-    return json.loads(response.choices[0].message.content)
+    return json.loads(resp_2.choices[0].message.content)
 
 
 # Built-in fallback catalogue — used when no Neo4j driver is provided.
