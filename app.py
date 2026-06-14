@@ -3,6 +3,7 @@ app.py — Streamlit interface for the MITRE ATLAS knowledge graph.
 Run with: streamlit run app.py
 """
 
+import json
 import os
 import sys
 
@@ -12,6 +13,8 @@ import streamlit as st
 from neo4j import GraphDatabase
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "queries"))
+import assess
+
 import queries
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -64,6 +67,7 @@ with st.sidebar:
             "🎯  Technique Inspector",
             "🛡️  Coverage Analysis",
             "📊  Tactic Overview",
+            "🤖  Threat Assessment",
         ],
         label_visibility="collapsed",
     )
@@ -469,6 +473,99 @@ elif page == "🛡️  Coverage Analysis":
                 df[["ID", "Mitigation", "Category", "Covered"]],
                 use_container_width=True,
                 hide_index=True,
+            )
+
+# ─── Threat Assessment ───────────────────────────────────────────────────────
+elif page == "🤖  Threat Assessment":
+    st.title("🤖 Threat Assessment")
+    st.markdown(
+        "Describe your AI system in plain English. "
+        "The model reads the live ATLAS catalogue from Neo4j and returns "
+        "the most relevant techniques with risk ratings and reasoning."
+    )
+    st.divider()
+
+    with st.sidebar:
+        st.divider()
+        groq_key = st.text_input(
+            "🔑 Groq API key",
+            type="password",
+            value=os.getenv("GROQ_API_KEY", ""),
+            help="Get a free key at console.groq.com",
+        )
+        model = st.selectbox(
+            "Model",
+            [
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant",
+                "mixtral-8x7b-32768",
+            ],
+        )
+        max_t = st.slider("Max techniques", 3, 15, 8)
+
+    system_desc = st.text_area(
+        "System description",
+        placeholder=(
+            "e.g. A RAG-based customer support chatbot backed by GPT-4o. "
+            "It retrieves context from an internal knowledge base, has access "
+            "to a CRM tool, and is accessible to external users via a web form."
+        ),
+        height=160,
+    )
+
+    if st.button("Run assessment", type="primary", disabled=not system_desc.strip()):
+        if not groq_key:
+            st.error("Enter your Groq API key in the sidebar.")
+        else:
+            with st.spinner("Querying Groq..."):
+                try:
+                    result = assess.assess_threat(
+                        system_desc,
+                        driver=driver,
+                        api_key=groq_key,
+                        model=model,
+                        max_techniques=max_t,
+                    )
+                except Exception as e:
+                    st.error(f"Assessment failed: {e}")
+                    st.stop()
+
+            techniques = result.get("techniques", [])
+            summary = result.get("summary", "")
+
+            # summary banner
+            st.subheader("Overall risk summary")
+            st.info(summary)
+            st.divider()
+
+            # technique cards
+            st.subheader(f"Relevant techniques ({len(techniques)})")
+            risk_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+
+            for t in techniques:
+                risk = (t.get("risk") or "medium").lower()
+                badge = risk_color.get(risk, "⚪")
+                with st.container(border=True):
+                    left, right = st.columns([5, 1])
+                    left.markdown(
+                        f"{badge} **{t.get('name', '—')}** &nbsp; `{t.get('id', '—')}`  \n"
+                        f"<small><i>{t.get('tactic', '—')}</i></small>",
+                        unsafe_allow_html=True,
+                    )
+                    right.markdown(
+                        f"<br><b style='color:{'#e63946' if risk == 'high' else '#f4d03f' if risk == 'medium' else '#06d6a0'}'>"
+                        f"{risk.upper()}</b>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(t.get("reason", ""))
+
+            # JSON download
+            st.divider()
+            st.download_button(
+                "Download JSON",
+                data=__import__("json").dumps(result, indent=2),
+                file_name="atlas_assessment.json",
+                mime="application/json",
             )
 
 # ─── Tactic Overview ──────────────────────────────────────────────────────────
