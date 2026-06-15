@@ -195,3 +195,9 @@ def owasp_risk_tactic_summary(driver, owasp_id: str) -> list[dict]:
     ORDER BY technique_count DESC
     """
     return _query(driver, cypher, owasp_id=owasp_id)
+
+
+def all_owasp_risks(driver) -> list[dict]:
+    """Return all OWASP risks from the graph."""
+    cypher = "MATCH (o:OwaspRisk) RETURN o.id AS id, o.name AS name ORDER BY o.id"
+    return _query(driver, cypher)

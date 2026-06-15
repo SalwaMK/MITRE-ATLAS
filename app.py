@@ -14,8 +14,8 @@ import streamlit as st
 from neo4j import GraphDatabase
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "queries"))
-import assess
-import draft
+import assess  # type: ignore
+import draft  # type: ignore
 import queries
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -321,6 +321,7 @@ with st.sidebar:
             "Tactic Overview",
             "Threat Assessment",
             "Report Generator",
+            "OWASP Insights",
         ],
         label_visibility="collapsed",
         key="page_nav",
@@ -435,6 +436,19 @@ def cached_coverage(_driver, limit):
 @st.cache_data(ttl=300)
 def cached_tactic_overview(_driver):
     return queries.tactic_overview(_driver)
+
+
+@st.cache_data(ttl=300)
+def cached_all_owasp_risks(_driver):
+    return queries.all_owasp_risks(_driver)
+
+@st.cache_data(ttl=300)
+def cached_owasp_risk_full_context(_driver, owasp_id):
+    return queries.owasp_risk_full_context(_driver, owasp_id)
+
+@st.cache_data(ttl=300)
+def cached_owasp_risk_tactic_summary(_driver, owasp_id):
+    return queries.owasp_risk_tactic_summary(_driver, owasp_id)
 
 
 # ── Plotly theme helper ───────────────────────────────────────────────────────
@@ -704,6 +718,11 @@ if page == "Overview":
             "Tactic Overview",
             "Compare technique counts vs. real-world incident counts per tactic "
             "with an interactive grouped bar chart.",
+        ),
+        (
+            "OWASP Insights",
+            "Explore how OWASP LLM Top 10 vulnerabilities directly translate to the "
+            "adversarial mechanisms in the MITRE ATLAS lifecycle.",
         ),
     ]
 
@@ -1200,3 +1219,65 @@ elif page == "Report Generator":
             file_name="atlas_threat_model.pdf",
             mime="application/pdf",
         )
+
+# ─── OWASP Insights ───────────────────────────────────────────────────────────
+elif page == "OWASP Insights":
+    page_header(
+        "OWASP Insights",
+        "Explore how OWASP LLM Top 10 risks map to adversary tactics and techniques "
+        "within the MITRE ATLAS lifecycle."
+    )
+
+    all_risks = cached_all_owasp_risks(driver)
+    if not all_risks:
+        st.warning("No OWASP risk nodes found in the graph. Please ensure ingest_owasp.py was run.")
+        st.stop()
+
+    risk_options = {f"{r['id']} — {r['name']}": r["id"] for r in all_risks}
+    selected_risk_label = st.selectbox("Select an OWASP Risk", list(risk_options.keys()))
+    owasp_id = risk_options[selected_risk_label]
+    
+    st.divider()
+
+    # Load context
+    with st.spinner("Querying graph..."):
+        tactic_summary = cached_owasp_risk_tactic_summary(driver, owasp_id)
+        full_context = cached_owasp_risk_full_context(driver, owasp_id)
+
+    if not tactic_summary:
+        st.info("This OWASP risk currently has no corresponding ATLAS mappings.")
+        st.stop()
+
+    section_header("Adversary Tactics Spanned")
+    st.caption("Shows the distinct adversary goals this vulnerability enables across the ATLAS lifecycle:")
+    
+    # Show metric cards for each tactic
+    cols = st.columns(min(len(tactic_summary), 4))
+    for i, row in enumerate(tactic_summary):
+        with cols[i % len(cols)]:
+            st.markdown(
+                f"""<div class="metric-card accent-purple">
+<div class="label" style="font-size: 0.70rem;">{row['tactic_name']}</div>
+<div class="value" style="font-size: 1.4rem;">{row['technique_count']}</div>
+<div class="sub">Techniques associated</div>
+</div>""",
+                unsafe_allow_html=True,
+            )
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+            
+    st.divider()
+    section_header(f"Technique Trace ({len(full_context)} Mappings)")
+    
+    if full_context:
+        df = pd.DataFrame(full_context)
+        df["tactics"] = df["tactics"].apply(lambda x: ", ".join(x) if x else "—")
+        df["mitigations"] = df["mitigations"].apply(lambda x: " · ".join(x) if x else "—")
+        df["case_studies"] = df["case_studies"].apply(lambda x: len(x) if x else 0)
+        
+        # Select and rename columns for display
+        display_df = df[["technique_id", "technique_name", "tactics", "mitigations", "case_studies"]].copy()
+        display_df.columns = ["Technique ID", "Name", "Tactic", "Mitigations", "Incidents"]
+        
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No detailed technique trace found.")
