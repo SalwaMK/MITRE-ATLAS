@@ -169,3 +169,72 @@ steps = relationships["AML.CS0001"]["employs"]
 - `(Technique|SubTechnique)-[:TARGETS]->(Platform)`
 - `(Technique|SubTechnique)-[:FOLLOWED_BY]->(Technique|SubTechnique)` — derived from case-study step `leads-to` chains
 - `(CaseStudy)-[:EMPLOYS {procedure, tactic_id}]->(Technique|SubTechnique)` — real-world usage with documented procedure text
+
+## OWASP LLM Top 10 Enrichment
+
+The graph can be enriched with the **OWASP LLM Top 10 (2025)** taxonomy as a
+cross-source layer. This adds `OwaspRisk` nodes cross-linked to ATLAS techniques
+via `CORRESPONDS_TO` edges, without touching any existing ATLAS data.
+
+### New node and edge types
+
+**Nodes**
+- `OwaspRisk {id, name, description}` — one node per OWASP LLM risk (LLM01–LLM10)
+
+**Relationships**
+- `(OwaspRisk)-[:CORRESPONDS_TO {rationale}]->(Technique|SubTechnique)` — links each OWASP risk to the ATLAS techniques that cover it, with a human-readable rationale string
+
+> [!NOTE]
+> `LLM09:2025` (Misinformation) intentionally has **no outgoing edges** — it has no
+> adversarial-technique counterpart in ATLAS. Its `OwaspRisk` node is still created
+> so the absence of edges is itself queryable.
+
+### How to run
+
+Run **after** `ingest.py` — this script is purely additive and never resets the graph:
+
+```bash
+# 1. Ingest ATLAS data (wipe + reload)
+python ingestion/ingest.py path_to/ATLAS-latest.yaml --reset
+
+# 2. Overlay OWASP enrichment (additive)
+python ingestion/ingest_owasp.py
+```
+
+`ingest_owasp.py` will use `data/owasp_llm_top10_2025.yaml` and
+`data/owasp_atlas_mapping.yaml` by default (or pass explicit paths as positional args).
+It accepts the same `--uri`, `--user`, `--password` flags as `ingest.py`.
+
+### Q9 — OWASP risk → ATLAS techniques
+
+After enrichment, run the updated validate script to see **Q9** in action:
+
+```bash
+cd queries
+# With live Neo4j:
+python validate.py path_to/ATLAS-latest.yaml
+
+# Or with the in-memory mock (no Docker needed):
+python validate.py ../data/ATLAS_sample.yaml --mock
+```
+
+Q9 queries `LLM01:2025` (Prompt Injection) and returns all ATLAS techniques that
+correspond to it, along with their ATLAS mitigations and real-world case studies.
+
+### Querying from a notebook
+
+```python
+from neo4j import GraphDatabase
+import sys
+sys.path.insert(0, "queries")
+import queries
+
+driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "atlaspassword"))
+
+for row in queries.atlas_for_owasp_risk(driver, "LLM01:2025"):
+    print(row["technique_id"], row["technique_name"])
+    print("  mitigations :", row["mitigations"])
+    print("  case studies:", row["case_studies"])
+
+driver.close()
+```

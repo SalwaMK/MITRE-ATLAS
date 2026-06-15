@@ -392,7 +392,74 @@ class MockSession:
                 out, key=lambda x: (-x["real_world_incidents"], x["technique_id"])
             )
 
+
+        # ----------------------------------------------------------------
+        # OWASP enrichment — ingest
+        # ----------------------------------------------------------------
+
+        if "CREATE CONSTRAINT" in q and "OwaspRisk" in q:
+            return []
+
+        if "MERGE (o:OwaspRisk {id: row.id})" in q:
+            for row in rows:
+                n = GRAPH.merge_node(["OwaspRisk"], "id", row["id"])
+                n.props.update(
+                    {
+                        "name": row["name"],
+                        "description": row["description"],
+                    }
+                )
+            return []
+
+        if "MERGE (o)-[r:CORRESPONDS_TO]->" in q:
+            owasp_id = params.get("owasp_id")
+            atlas_ids = params.get("atlas_ids", [])
+            rationale = params.get("rationale", "")
+            o = GRAPH.find_node(["OwaspRisk"], "id", owasp_id)
+            if o:
+                for tech_id in atlas_ids:
+                    t = GRAPH.find_node(["Technique", "SubTechnique"], "id", tech_id)
+                    if t:
+                        GRAPH.merge_rel(o, "CORRESPONDS_TO", t, {"rationale": rationale})
+            return []
+
+        # ----------------------------------------------------------------
+        # OWASP enrichment — query (atlas_for_owasp_risk)
+        # ----------------------------------------------------------------
+
+        if "MATCH (o:OwaspRisk {id: $owasp_id})-[r:CORRESPONDS_TO]->" in q:
+            owasp_id = params["owasp_id"]
+            o = GRAPH.find_node(["OwaspRisk"], "id", owasp_id)
+            out = []
+            if o:
+                for r in GRAPH.rels:
+                    if r[0] is o and r[1] == "CORRESPONDS_TO":
+                        t = r[2]
+                        rationale = r[3].get("rationale", "")
+                        mits = [
+                            rel[2].props.get("name")
+                            for rel in GRAPH.rels
+                            if rel[0] is t and rel[1] == "MITIGATED_BY"
+                        ]
+                        cs_names = list({
+                            rel[0].props.get("name")
+                            for rel in GRAPH.rels
+                            if rel[1] == "EMPLOYS" and rel[2] is t
+                        })
+                        out.append(
+                            {
+                                "owasp_risk": o.props.get("name"),
+                                "technique_id": t.props.get("id"),
+                                "technique_name": t.props.get("name"),
+                                "rationale": rationale,
+                                "mitigations": mits,
+                                "case_studies": cs_names,
+                            }
+                        )
+            return out
+
         raise NotImplementedError(f"Mock does not support query: {q[:120]}...")
+
 
 
 class MockDriverSessionCtx:

@@ -1,0 +1,79 @@
+owasp_llm_top10:
+  - id: "LLM01:2025"
+    name: Prompt Injection
+    description: >
+      Attackers craft malicious inputs that cause an LLM to override its original
+      instructions and perform unintended or unauthorized actions. This includes
+      direct jailbreaking via user turns and indirect injection via content
+      retrieved from external sources such as documents or web pages.
+
+  - id: "LLM02:2025"
+    name: Sensitive Information Disclosure
+    description: >
+      LLMs may inadvertently reveal private, proprietary, or personally identifiable
+      information present in their training data or accessible context. Insufficient
+      output filtering and over-permissive retrieval pipelines are common contributors.
+
+  - id: "LLM03:2025"
+    name: Supply Chain
+    description: >
+      Vulnerabilities in third-party components—pre-trained base models, fine-tuning
+      datasets, plugins, or libraries—can propagate security flaws into the final
+      application. Compromised upstream artifacts may introduce backdoors or biased
+      behaviour that is difficult to detect after integration.
+
+  - id: "LLM04:2025"
+    name: Data and Model Poisoning
+    description: >
+      Adversaries tamper with pre-training corpora, fine-tuning datasets, or RAG
+      knowledge bases to embed biases, backdoors, or incorrect information into the
+      model. The effects persist invisibly and can later be triggered by specific
+      inputs during inference.
+
+  - id: "LLM05:2025"
+    name: Improper Output Handling
+    description: >
+      When LLM-generated content is passed to downstream systems—browsers, code
+      interpreters, or databases—without adequate sanitization, it can lead to XSS,
+      prompt re-injection, or code execution vulnerabilities. Treating model output
+      as trusted data is the root cause.
+
+  - id: "LLM06:2025"
+    name: Excessive Agency
+    description: >
+      Granting an LLM agent overly broad permissions to tools, APIs, or automated
+      workflows enables it to take harmful actions beyond its intended scope, especially
+      when manipulated through prompt injection. Least-privilege principles and human
+      oversight checkpoints are the primary mitigations.
+
+  - id: "LLM07:2025"
+    name: System Prompt Leakage
+    description: >
+      The confidential system prompt—which defines the model's persona, guardrails,
+      and operational instructions—can be extracted by adversaries through targeted
+      queries or indirect inference. Exposed system prompts reveal architectural
+      details and can be used to craft more effective attacks.
+
+  - id: "LLM08:2025"
+    name: Vector and Embedding Weaknesses
+    description: >
+      Vector databases and embedding models used in RAG systems introduce their own
+      attack surface: poisoned embeddings, unauthorised data retrieval, and insecure
+      similarity-search configurations can lead to data leakage or manipulated
+      retrieval results.
+
+  - id: "LLM09:2025"
+    name: Misinformation
+    description: >
+      LLMs can generate confidently stated but factually incorrect information
+      (hallucinations), which may be weaponised to spread disinformation or mislead
+      decision-making processes. Unlike adversarial attacks, this risk arises from
+      inherent model limitations under normal operating conditions.
+
+  - id: "LLM10:2025"
+    name: Unbounded Consumption
+    description: >
+      Without resource controls, LLM operations can consume excessive compute,
+      memory, or API quota—leading to denial-of-service conditions or runaway
+      infrastructure costs. Agentic loops and recursive tool calls amplify this risk
+      significantly.

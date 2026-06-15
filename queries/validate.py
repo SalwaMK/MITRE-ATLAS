@@ -133,6 +133,36 @@ def main():
             f"     mitigations={row['mitigations']}  real_world_incidents={row['real_world_incidents']}"
         )
 
+    # ------------------------------------------------------------------
+    # OWASP LLM Top 10 enrichment (additive — runs after ATLAS ingestion)
+    # ------------------------------------------------------------------
+    import os as _os
+    _root = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..")
+    _owasp_yaml    = _os.path.join(_root, "data", "owasp_llm_top10_2025.yaml")
+    _mapping_yaml  = _os.path.join(_root, "data", "owasp_atlas_mapping.yaml")
+
+    sys.path.insert(0, _os.path.join(_root, "ingestion"))
+    import ingest_owasp
+
+    _owasp_data   = ingest_owasp.load_yaml(_owasp_yaml)
+    _mapping_data = ingest_owasp.load_yaml(_mapping_yaml)
+    _risks        = _owasp_data.get("owasp_llm_top10") or []
+    _mappings     = _mapping_data.get("mappings") or []
+
+    _owasp_ingester = ingest_owasp.OwaspIngester(args.uri, args.user, args.password)
+    try:
+        _owasp_ingester.create_constraint()
+        _owasp_ingester.load_owasp_risks(_risks)
+        _owasp_ingester.load_mappings(_mappings)
+    finally:
+        _owasp_ingester.close()
+
+    print("\n" + "=" * 70)
+    print("Q9. OWASP LLM01 (Prompt Injection) -> ATLAS techniques + mitigations + incidents")
+    print("=" * 70)
+    for row in queries.atlas_for_owasp_risk(driver, "LLM01:2025"):
+        print(row)
+
     driver.close()
     print("\nAll queries executed successfully.")
 

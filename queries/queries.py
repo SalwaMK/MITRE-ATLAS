@@ -131,3 +131,19 @@ def threat_profile(driver, platform: str) -> list[dict]:
     ORDER BY real_world_incidents DESC, technique_id
     """
     return _query(driver, cypher, platform=platform)
+
+
+def atlas_for_owasp_risk(driver, owasp_id: str) -> list[dict]:
+    """Given an OWASP LLM Top 10 risk ID, return corresponding ATLAS
+    techniques with their mitigations and case studies."""
+    cypher = """
+    MATCH (o:OwaspRisk {id: $owasp_id})-[r:CORRESPONDS_TO]->(t)
+    WHERE t:Technique OR t:SubTechnique
+    OPTIONAL MATCH (t)-[:MITIGATED_BY]->(m:Mitigation)
+    OPTIONAL MATCH (cs:CaseStudy)-[:EMPLOYS]->(t)
+    RETURN o.name AS owasp_risk, t.id AS technique_id, t.name AS technique_name,
+           r.rationale AS rationale,
+           collect(DISTINCT m.name) AS mitigations,
+           collect(DISTINCT cs.name) AS case_studies
+    """
+    return _query(driver, cypher, owasp_id=owasp_id)

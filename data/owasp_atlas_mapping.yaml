@@ -1,0 +1,137 @@
+mappings:
+  - owasp_id: "LLM01:2025"
+    atlas_ids:
+      - "AML.T0051"
+      - "AML.T0051.000"
+      - "AML.T0051.001"
+      - "AML.T0051.002"
+      - "AML.T0054"
+      - "AML.T0065"
+      - "AML.T0068"
+      - "AML.T0061"
+      - "AML.T0093"
+    rationale: >
+      OWASP's Prompt Injection covers direct, indirect, and triggered prompt 
+      injection (AML.T0051 and its sub-techniques), general jailbreaking (AML.T0054),
+      prompt crafting and obfuscation (AML.T0065, AML.T0068), self-replicating
+      prompts (AML.T0061), and infiltration via public applications (AML.T0093).
+
+  - owasp_id: "LLM02:2025"
+    atlas_ids:
+      - "AML.T0057"
+      - "AML.T0024"
+      - "AML.T0024.000"
+      - "AML.T0024.001"
+      - "AML.T0024.002"
+    rationale: >
+      Sensitive Information Disclosure aligns primarily with LLM Data Leakage
+      (AML.T0057) and various forms of model extraction/inversion that compromise
+      training data confidentiality (AML.T0024 family).
+
+  - owasp_id: "LLM03:2025"
+    atlas_ids:
+      - "AML.T0010"
+      - "AML.T0010.000"
+      - "AML.T0010.001"
+      - "AML.T0010.002"
+      - "AML.T0010.003"
+      - "AML.T0010.004"
+      - "AML.T0010.005"
+      - "AML.T0109"
+      - "AML.T0111"
+      - "AML.T0058"
+      - "AML.T0104"
+      - "AML.T0019"
+    rationale: >
+      Supply Chain vulnerabilities cover the entire AI Supply Chain Compromise 
+      category (AML.T0010 and sub-techniques), as well as publishing poisoned 
+      models (AML.T0058), datasets (AML.T0019), and AI agent tools (AML.T0104).
+      It also relates to rug pulls (AML.T0109) and reputation inflation (AML.T0111).
+
+  - owasp_id: "LLM04:2025"
+    atlas_ids:
+      - "AML.T0020"
+      - "AML.T0018"
+      - "AML.T0018.000"
+      - "AML.T0059"
+      - "AML.T0070"
+      - "AML.T0080"
+      - "AML.T0080.000"
+      - "AML.T0080.001"
+      - "AML.T0099"
+    rationale: >
+      Data and Model Poisoning maps to Poison Training Data (AML.T0020),
+      Manipulating/Poisoning AI Models (AML.T0018 series), Eroding Dataset Integrity
+      (AML.T0059), RAG Poisoning (AML.T0070), and poisoning AI agent context and
+      tools (AML.T0080, AML.T0099).
+
+  - owasp_id: "LLM05:2025"
+    atlas_ids:
+      - "AML.T0077"
+      - "AML.T0067"
+      - "AML.T0067.000"
+    rationale: >
+      Improper Output Handling enables adversarial payloads to be executed downstream.
+      This corresponds to exploits in LLM Response Rendering (AML.T0077) and manipulation
+      of trusted components like citations (AML.T0067 series).
+
+  - owasp_id: "LLM06:2025"
+    atlas_ids:
+      - "AML.T0053"
+      - "AML.T0086"
+      - "AML.T0101"
+      - "AML.T0081"
+      - "AML.T0110"
+    rationale: >
+      Excessive Agency revolves around the abuse of an AI agent's delegated capabilities.
+      Relevant techniques include generalized Agent Tool Invocation (AML.T0053),
+      using tools for Exfiltration (AML.T0086) or Data Destruction (AML.T0101),
+      and modifying / poisoning the agent's configuration and tools (AML.T0081, AML.T0110).
+
+  - owasp_id: "LLM07:2025"
+    atlas_ids:
+      - "AML.T0056"
+      - "AML.T0069"
+      - "AML.T0069.000"
+      - "AML.T0069.001"
+      - "AML.T0069.002"
+    rationale: >
+      System Prompt Leakage strictly maps to Extract LLM System Prompt (AML.T0056)
+      and Discover LLM System Information (AML.T0069 series), which are techniques
+      specifically focused on uncovering the system's operational instructions.
+
+  - owasp_id: "LLM08:2025"
+    atlas_ids:
+      - "AML.T0070"
+      - "AML.T0071"
+      - "AML.T0064"
+      - "AML.T0066"
+      - "AML.T0085.000"
+      - "AML.T0082"
+    rationale: >
+      Vector and Embedding Weaknesses pertain directly to RAG systems: RAG Poisoning 
+      (AML.T0070), False RAG Entry Injection (AML.T0071), gathering/crafting retrieval 
+      content (AML.T0064, AML.T0066), targeting RAG databases (AML.T0085.000), and
+      harvesting RAG credentials (AML.T0082).
+
+  - owasp_id: "LLM09:2025"
+    atlas_ids:
+      - "AML.T0060"
+      - "AML.T0062"
+    rationale: >
+      LLM Misinformation and Hallucinations map directly to the corresponding ATLAS 
+      techniques: Publish Hallucinated Entities (AML.T0060) and Discover LLM 
+      Hallucinations (AML.T0062).
+
+  - owasp_id: "LLM10:2025"
+    atlas_ids:
+      - "AML.T0029"
+      - "AML.T0034"
+      - "AML.T0034.000"
+      - "AML.T0034.001"
+      - "AML.T0034.002"
+      - "AML.T0046"
+    rationale: >
+      Unbounded Consumption leads to Denial of AI Service (AML.T0029) and Cost 
+      Harvesting (AML.T0034 series), driven by excessive / resource-intensive queries 
+      or agentic recursion. Spamming with chaff data (AML.T0046) is also a vector.
