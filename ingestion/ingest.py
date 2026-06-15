@@ -12,19 +12,19 @@ from typing import Any
 import yaml
 from neo4j import GraphDatabase
 
-
+#to return field names correctly
 def _first(d: dict, *keys: str, default: Any = None) -> Any:
     for k in keys:
         if k in d and d[k] is not None:
             return d[k]
     return default
 
-
+#open and parse yaml file
 def load_atlas_yaml(path: str) -> dict:
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-
+#v5.6: how data nested before
 def get_matrix(data: dict) -> dict:
     """Return the first matrix dict (legacy format helper)."""
     if "matrices" in data and data["matrices"]:
@@ -33,14 +33,14 @@ def get_matrix(data: dict) -> dict:
         return data["matrix"]
     return data
 
-
+#return format version: 5.6 or 6.0
 def detect_format(data: dict) -> str:
     fv = str(data.get("format-version", ""))
     if fv.startswith("6.") or isinstance(data.get("tactics"), dict):
         return "v6"
     return "legacy"
 
-
+#normalize both versions into lists
 def get_sections(data: dict) -> dict:
     """Normalise both ATLAS formats into flat lists plus a raw relationships dict."""
     fmt = detect_format(data)
@@ -68,7 +68,7 @@ def get_sections(data: dict) -> dict:
         "format": fmt,
     }
 
-
+#connect neo4j driver
 class AtlasIngester:
     def __init__(self, uri: str, user: str, password: str):
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -76,6 +76,7 @@ class AtlasIngester:
     def close(self):
         self.driver.close()
 
+    #clean re-run
     def reset(self):
         with self.driver.session() as session:
             session.run("MATCH (n) DETACH DELETE n")
@@ -111,9 +112,15 @@ class AtlasIngester:
         self._run(query, rows=rows)
         print(f"  loaded {len(rows)} Tactic nodes")
 
+
     def load_techniques_and_subtechniques(
         self, techniques: list[dict], relationships: dict, fmt: str
     ):
+
+        '''for each technique: figure out its tactics, 
+        if it's sub-tech and its parent, 
+        and which platforms it targets'''
+
         top_level: list[dict] = []
         sub_level: list[dict] = []
         platforms: set[str] = set()
@@ -202,6 +209,7 @@ class AtlasIngester:
         print(f"  loaded {len(sub_level)} SubTechnique nodes")
         print(f"  loaded {len(platforms)} Platform nodes")
 
+    #handle name variations & return csv str when property is list
     def load_mitigations(self, mitigations: list[dict]):
         query = """
         UNWIND $rows AS row
@@ -235,6 +243,7 @@ class AtlasIngester:
         self._run(query, rows=rows)
         print(f"  loaded {len(rows)} Mitigation nodes")
 
+    #builds the (Technique)-[:MITIGATED_BY]->(Mitigation) edges
     def load_mitigation_edges(
         self, relationships: dict, mitigations: list[dict], fmt: str
     ):
@@ -271,6 +280,7 @@ class AtlasIngester:
         self._run(query, rows=pairs)
         print(f"  loaded {len(pairs)} MITIGATED_BY relationships")
 
+    #build cs nodes and (case_study)-[:EMPLOYS]->(technique) edges (proc as edge prop)
     def load_case_studies(
         self, case_studies: list[dict], relationships: dict, fmt: str
     ):
@@ -337,6 +347,7 @@ class AtlasIngester:
         self._run(employs_query, rows=employs_rows)
         print(f"  loaded {len(employs_rows)} EMPLOYS relationships")
 
+    #build sequences of techs in cs
     def load_sequences(self, relationships: dict, fmt: str):
         pairs: set[tuple[str, str]] = set()
 
