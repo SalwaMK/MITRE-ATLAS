@@ -25,13 +25,13 @@ def main():
     args = parser.parse_args()
 
     if args.mock:
-        import mock_neo4j as neo4j_module
+        import mock_neo4j as neo4j_module  #type: ignore
 
         sys.modules["neo4j"] = neo4j_module
     else:
         import neo4j as neo4j_module  # noqa: F401
 
-    import ingest
+    import ingest  # type: ignore
 
     import queries
 
@@ -142,7 +142,7 @@ def main():
     _mapping_yaml  = _os.path.join(_root, "data", "owasp_atlas_mapping.yaml")
 
     sys.path.insert(0, _os.path.join(_root, "ingestion"))
-    import ingest_owasp
+    import ingest_owasp  # type: ignore
 
     _owasp_data   = ingest_owasp.load_yaml(_owasp_yaml)
     _mapping_data = ingest_owasp.load_yaml(_mapping_yaml)
@@ -161,6 +161,22 @@ def main():
     print("Q9. OWASP LLM01 (Prompt Injection) -> ATLAS techniques + mitigations + incidents")
     print("=" * 70)
     for row in queries.atlas_for_owasp_risk(driver, "LLM01:2025"):
+        print(row)
+
+    print("\nQ10. Full 3-layer context for LLM01 (OWASP -> Technique -> Tactic, + mitigations/incidents)")
+    for row in queries.owasp_risk_full_context(driver, "LLM01:2025"):
+        print(row)
+
+    print("\nQ11. Which ATLAS tactics (adversary goals) does LLM01 span?")
+    for row in queries.owasp_risk_tactic_summary(driver, "LLM01:2025"):
+        print(row)
+
+    print("\nQ10. Full 3-layer context for LLM06 (OWASP -> Technique -> Tactic, + mitigations/incidents)")
+    for row in queries.owasp_risk_full_context(driver, "LLM06:2025"):
+        print(row)
+
+    print("\nQ11. Which ATLAS tactics (adversary goals) does LLM06 span?")
+    for row in queries.owasp_risk_tactic_summary(driver, "LLM06:2025"):
         print(row)
 
     driver.close()

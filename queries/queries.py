@@ -147,3 +147,51 @@ def atlas_for_owasp_risk(driver, owasp_id: str) -> list[dict]:
            collect(DISTINCT cs.name) AS case_studies
     """
     return _query(driver, cypher, owasp_id=owasp_id)
+
+
+def owasp_risk_full_context(driver, owasp_id: str) -> list[dict]:
+    """Given an OWASP LLM Top 10 risk ID, return the full three-layer
+    context: the corresponding ATLAS technique(s)/sub-technique(s), the
+    tactic(s) each one belongs to (the adversary's goal when using that
+    technique), its mitigations, and any real-world case studies.
+
+    This demonstrates the transitive path:
+        OwaspRisk -[:CORRESPONDS_TO]-> Technique -[:BELONGS_TO]-> Tactic
+
+    No new edge type is introduced between OwaspRisk and Tactic --
+    the tactic context is reached via the existing Technique->Tactic
+    relationship, since OWASP risk categories (vulnerability class) and
+    ATLAS tactics (adversary goal) are different axes that are already
+    bridged by Technique.
+    """
+    cypher = """
+    MATCH (o:OwaspRisk {id: $owasp_id})-[:CORRESPONDS_TO]->(t)
+    WHERE t:Technique OR t:SubTechnique
+    OPTIONAL MATCH (t)-[:BELONGS_TO]->(ta:Tactic)
+    OPTIONAL MATCH (t)-[:MITIGATED_BY]->(m:Mitigation)
+    OPTIONAL MATCH (cs:CaseStudy)-[:EMPLOYS]->(t)
+    RETURN o.name AS owasp_risk,
+           t.id AS technique_id, t.name AS technique_name,
+           collect(DISTINCT ta.name) AS tactics,
+           collect(DISTINCT m.name) AS mitigations,
+           collect(DISTINCT cs.name) AS case_studies
+    ORDER BY technique_id
+    """
+    return _query(driver, cypher, owasp_id=owasp_id)
+
+
+def owasp_risk_tactic_summary(driver, owasp_id: str) -> list[dict]:
+    """Given an OWASP LLM Top 10 risk ID, return the distinct set of
+    ATLAS tactics (adversary goals) spanned by its corresponding
+    techniques, with a count of techniques per tactic. Useful for
+    answering: 'when this OWASP risk manifests via ATLAS techniques,
+    what is the attacker actually trying to achieve?'"""
+    cypher = """
+    MATCH (o:OwaspRisk {id: $owasp_id})-[:CORRESPONDS_TO]->(t)
+    WHERE t:Technique OR t:SubTechnique
+    MATCH (t)-[:BELONGS_TO]->(ta:Tactic)
+    RETURN ta.id AS tactic_id, ta.name AS tactic_name,
+           count(DISTINCT t) AS technique_count
+    ORDER BY technique_count DESC
+    """
+    return _query(driver, cypher, owasp_id=owasp_id)
