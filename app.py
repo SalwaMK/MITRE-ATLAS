@@ -262,12 +262,17 @@ details summary {
 .risk-low    { color: #06d6a0; font-weight: 700; font-size: 0.8rem; letter-spacing:.04em; }
 
 /* ── Input fields ── */
+div[data-testid="stTextInput"] div[data-baseweb="input"],
+div[data-testid="stTextArea"] div[data-baseweb="textarea"] {
+    background: #0d1020 !important;
+    border: 1px solid rgba(76,201,240,0.25) !important;
+    border-radius: 8px !important;
+}
 div[data-testid="stTextInput"] input,
 div[data-testid="stTextArea"] textarea {
-    background: #0d1020 !important;
-    border-color: rgba(76,201,240,0.15) !important;
-    border-radius: 8px !important;
     font-family: 'Inter', sans-serif !important;
+    background: transparent !important;
+    border: none !important;
 }
 
 /* ── Buttons ── */
@@ -371,6 +376,7 @@ def get_stats(_driver):
             "Mitigation",
             "CaseStudy",
             "Platform",
+            "OwaspRisk",
         ]:
             counts[label] = s.run(f"MATCH (n:{label}) RETURN count(n) AS c").single()["c"]
         rels = s.run(
@@ -521,6 +527,7 @@ def build_schema_graph(stats):
         "Mitigation":   {"color": "#06d6a0", "size": 44, "icon": "M", "count_key": "Mitigation"},
         "CaseStudy":    {"color": "#f4a261", "size": 40, "icon": "C", "count_key": "CaseStudy"},
         "Platform":     {"color": "#e63946", "size": 36, "icon": "P", "count_key": "Platform"},
+        "OwaspRisk":    {"color": "#ff006e", "size": 38, "icon": "O", "count_key": "OwaspRisk"},
     }
 
     # Hand-tuned positions (x, y) for a balanced layout
@@ -531,6 +538,7 @@ def build_schema_graph(stats):
         "Mitigation":   (0.18, 0.20),
         "CaseStudy":    (0.82, 0.20),
         "Platform":     (0.5,  0.10),
+        "OwaspRisk":    (0.18, 0.55),
     }
 
     # Relationship schema: (source, target, rel_type)
@@ -541,6 +549,7 @@ def build_schema_graph(stats):
         ("Technique",    "Mitigation",   "MITIGATED_BY"),
         ("CaseStudy",    "Technique",    "EMPLOYS"),
         ("Technique",    "Technique",    "FOLLOWED_BY"),
+        ("OwaspRisk",    "Technique",    "CORRESPONDS_TO"),
     ]
 
     rels_data = stats.get("rels", {})
@@ -1037,12 +1046,13 @@ elif page == "Threat Assessment":
 
     with st.sidebar:
         st.divider()
-        groq_key = st.text_input(
-            "Groq API key",
-            type="password",
-            value=os.getenv("GROQ_API_KEY", ""),
-            help="Get a free key at console.groq.com",
-        )
+        with st.container(border=True):
+            groq_key = st.text_input(
+                "Groq API key",
+                type="password",
+                value=os.getenv("GROQ_API_KEY", ""),
+                help="Get a free key at console.groq.com",
+            )
         model = st.selectbox(
             "Model",
             [
@@ -1127,13 +1137,14 @@ elif page == "Report Generator":
 
     with st.sidebar:
         st.divider()
-        rg_key = st.text_input(
-            "Groq API key",
-            type="password",
-            value=os.getenv("GROQ_API_KEY", ""),
-            key="rg_groq_key",
-            help="Get a free key at console.groq.com",
-        )
+        with st.container(border=True):
+            rg_key = st.text_input(
+                "Groq API key",
+                type="password",
+                value=os.getenv("GROQ_API_KEY", ""),
+                key="rg_groq_key",
+                help="Get a free key at console.groq.com",
+            )
         rg_model = st.selectbox(
             "Model",
             [
