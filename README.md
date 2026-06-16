@@ -29,7 +29,7 @@ Load the core MITRE ATLAS dataset followed by the OWASP LLM Top 10 enrichment la
 ```bash
 # 1. Wipe the graph and load the core MITRE ATLAS v6.0 dataset
 #    (Replace with your actual path to ATLAS-latest.yaml)
-python ingestion/ingest.py atlas-data/dist/ATLAS-latest.yaml --reset
+python ingestion/ingest.py data/ATLAS-latest.yaml --reset
 
 # 2. Additive load of OWASP LLM Top 10 (2025) mappings
 python ingestion/ingest_owasp.py

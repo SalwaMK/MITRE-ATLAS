@@ -23,6 +23,7 @@ import time
 from io import BytesIO
 from typing import Optional
 
+import fpdf
 from fpdf import FPDF
 from groq import Groq
 
@@ -53,25 +54,84 @@ def markdown_to_pdf(markdown_text: str) -> bytes:
     # Use slightly smaller margins to be safe
     pdf.set_margins(15, 15, 15)
     
+    PRIMARY_COLOR = (44, 62, 80)
+    SECONDARY_COLOR = (52, 152, 219)
+    TEXT_COLOR = (40, 40, 40)
+    
     # We use a standard width of 180mm for content on A4 (210 - 15 - 15)
     w = 180
 
+    in_table = False
+    table_data = []
+
+    def render_table():
+        if not table_data: return
+        
+        max_cols = max(len(r) for r in table_data)
+        if max_cols == 0: return
+
+        # Normalize rows to have the same number of columns
+        for r in table_data:
+            while len(r) < max_cols:
+                r.append("")
+
+        # Calculate proportional column widths based on content size
+        col_chars = [0] * max_cols
+        for r in table_data:
+            for j, cell in enumerate(r):
+                col_chars[j] += len(cell)
+                
+        total_chars = sum(col_chars) or 1
+        # Assign widths, preventing any column from being completely collapsed
+        widths = [max(0.1, c / total_chars) for c in col_chars]
+
+        pdf.set_font("Helvetica", size=9)
+        with pdf.table(text_align="LEFT", width=w, col_widths=widths) as table:
+            for i, row_data in enumerate(table_data):
+                row = table.row()
+                if i == 0:
+                    row.style = fpdf.fonts.FontFace(emphasis="B", color=(255, 255, 255), fill_color=SECONDARY_COLOR)
+                for datum in row_data:
+                    row.cell(datum)
+        pdf.ln(5)
+
     for line in markdown_text.splitlines():
+        if line.strip().startswith("|") and line.strip().endswith("|"):
+            if "-|-" in line or "---" in line:
+                continue
+            cells = [c.strip() for c in line.strip().split("|")]
+            if not cells[0]: cells.pop(0)
+            if cells and not cells[-1]: cells.pop()
+            if cells:
+                table_data.append(cells)
+            in_table = True
+            continue
+        
+        if in_table:
+            render_table()
+            table_data = []
+            in_table = False
+
         # Headings
         if line.startswith("### "):
             pdf.set_font("Helvetica", "B", 12)
+            pdf.set_text_color(*SECONDARY_COLOR)
             pdf.multi_cell(w, 7, line[4:].strip())
             pdf.ln(1)
         elif line.startswith("## "):
             pdf.set_font("Helvetica", "B", 14)
+            pdf.set_text_color(*PRIMARY_COLOR)
             pdf.multi_cell(w, 8, line[3:].strip())
             pdf.ln(2)
         elif line.startswith("# "):
             pdf.set_font("Helvetica", "B", 16)
+            pdf.set_text_color(*PRIMARY_COLOR)
             pdf.multi_cell(w, 10, line[2:].strip())
             pdf.ln(3)
         elif line.startswith("---") or line.startswith("==="):
-            pdf.ln(2)
+            pdf.set_draw_color(200, 200, 200)
+            pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+            pdf.ln(4)
         elif line.strip() == "":
             pdf.ln(3)
         else:
@@ -87,8 +147,13 @@ def markdown_to_pdf(markdown_text: str) -> bytes:
                 clean = "  - " + clean[2:]
             
             pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(*TEXT_COLOR)
             # Use explicit width instead of 0 to avoid "Not enough space" math bugs in some fpdf2 versions
             pdf.multi_cell(w, 6, clean)
+            pdf.ln(2)
+
+    if in_table:
+        render_table()
 
     return pdf.output()
 
@@ -122,7 +187,9 @@ Report structure (use these exact Markdown headings):
 ### <Technique Name> [AML.Txxxx]
 (one subsection per technique, with: tactic, risk level, reasoning, relevant case studies)
 ## Mitigation Recommendations
+(Use a Markdown table with columns: ID, Name, Addressed Techniques)
 ## Coverage Gaps
+(Use a Markdown table listing identified gaps)
 ## References
 (list every cited node with its full name and one-line description)
 """
