@@ -16,7 +16,7 @@ from neo4j import GraphDatabase
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "queries"))
 import assess  # type: ignore
 import draft  # type: ignore
-import queries
+import atlas_queries as queries
 
 # ── Page config ───────────────────────────────────────────────────────────────
 
@@ -455,6 +455,11 @@ def cached_owasp_risk_full_context(_driver, owasp_id):
 @st.cache_data(ttl=300)
 def cached_owasp_risk_tactic_summary(_driver, owasp_id):
     return queries.owasp_risk_tactic_summary(_driver, owasp_id)
+
+
+@st.cache_data(ttl=300)
+def cached_owasp_tactic_span_summary(_driver):
+    return queries.owasp_tactic_span_summary(_driver)
 
 
 # ── Plotly theme helper ───────────────────────────────────────────────────────
@@ -1254,6 +1259,33 @@ elif page == "OWASP Insights":
     if not all_risks:
         st.warning("No OWASP risk nodes found in the graph. Please ensure ingest_owasp.py was run.")
         st.stop()
+
+    # --- Global Summary ---
+    span_summary = cached_owasp_tactic_span_summary(driver)
+    if span_summary:
+        section_header("Adversarial Breadth per OWASP Risk")
+        st.caption("How many distinct ATLAS tactics are spanned by each OWASP risk category:")
+        
+        df_span = pd.DataFrame(span_summary)
+        fig_span = px.bar(
+            df_span,
+            x="tactic_span",
+            y="owasp_name",
+            orientation="h",
+            color="tactic_span",
+            color_continuous_scale=[[0, "#1a1d2e"], [0.5, "#7209b7"], [1, "#4cc9f0"]],
+            text="tactic_span",
+            labels={"tactic_span": "Tactics Spanned", "owasp_name": "OWASP Risk"},
+            height=380,
+        )
+        fig_span.update_traces(textposition="outside")
+        fig_span = dark_layout(
+            fig_span,
+            coloraxis_showscale=False,
+            margin={"l": 0, "r": 50, "t": 20, "b": 40},
+        )
+        st.plotly_chart(fig_span, use_container_width=True)
+        st.divider()
 
     risk_options = {f"{r['id']} — {r['name']}": r["id"] for r in all_risks}
     selected_risk_label = st.selectbox("Select an OWASP Risk", list(risk_options.keys()))

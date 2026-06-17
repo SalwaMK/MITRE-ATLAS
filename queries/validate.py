@@ -33,7 +33,7 @@ def main():
 
     import ingest  # type: ignore
 
-    import queries
+    import atlas_queries as queries
 
     data = ingest.load_atlas_yaml(args.yaml_path)
     sections = ingest.get_sections(data)

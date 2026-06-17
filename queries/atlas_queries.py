@@ -201,3 +201,16 @@ def all_owasp_risks(driver) -> list[dict]:
     """Return all OWASP risks from the graph."""
     cypher = "MATCH (o:OwaspRisk) RETURN o.id AS id, o.name AS name ORDER BY o.id"
     return _query(driver, cypher)
+
+
+def owasp_tactic_span_summary(driver) -> list[dict]:
+    """Return the count of distinct ATLAS tactics spanned by each OWASP risk."""
+    cypher = """
+    MATCH (o:OwaspRisk)-[:CORRESPONDS_TO]->(t)
+    WHERE t:Technique OR t:SubTechnique
+    MATCH (t)-[:BELONGS_TO]->(ta:Tactic)
+    RETURN o.id AS owasp_id, o.name AS owasp_name,
+           count(DISTINCT ta) AS tactic_span
+    ORDER BY tactic_span DESC
+    """
+    return _query(driver, cypher)
