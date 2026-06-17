@@ -27,18 +27,26 @@ from typing import Optional
 from groq import Groq
 
 _SYSTEM_PROMPT_STEP_1 = """\
-You are a cybersecurity expert. Given an AI system description, select up to 15 relevant 
-MITRE ATLAS technique IDs from the provided catalogue.
+You are an AI security expert. Your task is to identify MITRE ATLAS techniques relevant to a GIVEN AI SYSTEM.
+
+CRITICAL RULES:
+1. ONLY select IDs that are present in the provided catalogue. 
+2. IF the system description is NOT related to AI, Machine Learning, or LLMs (e.g., a static website, a basic calculator, a recipe), you MUST return an empty list: {"candidate_ids": []}.
+3. Do NOT select techniques for generic web vulnerabilities (like XSS or SQLi) unless they are specifically listed in the ATLAS catalogue with those IDs.
+4. If a technique is only marginally relevant, OMIT IT.
+
 Return ONLY valid JSON: {"candidate_ids": ["AML.T0000", ...]}
 """
 
 _SYSTEM_PROMPT_STEP_2 = """\
-You are a cybersecurity expert. Given an AI system description and the OFFICIAL definitions 
-of relevant MITRE ATLAS techniques, generate a structured threat assessment.
+You are an AI security expert. Analyze the AI system and the provided ATLAS techniques.
 
 Rules:
 - Only reference techniques provided in the context.
-- Write 1-2 sentences of reasoning per technique.
+- Use the EXACT names and IDs from the context. Do NOT invent new names or meanings for IDs.
+- Write 1-2 sentences of specific reasoning: how does this attack apply to THIS specific AI system?
+- If a technique is not truly applicable to the system description, OMIT IT.
+- If no techniques are applicable, return an empty list for "techniques".
 - Return valid JSON only.
 
 Output schema:
@@ -118,6 +126,7 @@ def assess_threat(
     user_msg_1 = (
         f"ATLAS technique catalogue:\n{catalogue_short}\n\n"
         f"System description:\n{system_description}\n\n"
+        f"Select up to {max_techniques} relevant technique IDs.\n"
     )
 
     resp_1 = client.chat.completions.create(
@@ -143,7 +152,9 @@ def assess_threat(
     user_msg_2 = (
         f"Candidate Techniques Context:\n{detailed_context}\n\n"
         f"System description:\n{system_description}\n\n"
-        f"Return the {max_techniques} most relevant techniques for this system."
+        f"Requirement: Return ONLY the relevant techniques for this system (maximum {max_techniques}). "
+        "If a technique in the context is not relevant to the description, OMIT IT. "
+        "Do not invent new techniques."
     )
     
     resp_2 = client.chat.completions.create(

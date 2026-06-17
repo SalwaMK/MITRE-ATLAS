@@ -161,9 +161,14 @@ def markdown_to_pdf(markdown_text: str) -> bytes:
 # ── Step 1 system prompt ──────────────────────────────────────────────────────
 
 _STEP1_SYSTEM = """\
-You are a cybersecurity expert specialising in threats to AI/ML systems (MITRE ATLAS).
-Given a system description and the full ATLAS technique catalogue, select up to 15
-technique IDs most relevant to this system.
+You are an AI security expert specializing in MITRE ATLAS. Your task is to identify 
+techniques relevant to a GIVEN AI SYSTEM.
+
+CRITICAL RULES:
+1. ONLY select IDs that are present in the provided catalogue. 
+2. IF the system description is NOT related to AI, Machine Learning, or LLMs (e.g., a static website, a basic calculator, a recipe), you MUST return an empty list: {"candidate_ids": []}.
+3. If a technique is only marginally relevant, OMIT IT.
+
 Return ONLY valid JSON: {"candidate_ids": ["AML.T0000", ...]}
 """
 
@@ -345,7 +350,10 @@ def draft_report(
                 {"role": "system", "content": _STEP1_SYSTEM},
                 {"role": "user", "content": (
                     f"ATLAS catalogue:\n{catalogue}\n\n"
-                    f"System description:\n{system_description}"
+                    f"System description:\n{system_description}\n\n"
+                    f"Select up to {max_techniques} relevant technique IDs. "
+                    "If fewer than {max_techniques} are relevant, return only those. "
+                    "If none are relevant, return an empty list."
                 )},
             ],
             temperature=0.1,
