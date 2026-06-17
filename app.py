@@ -562,11 +562,22 @@ def build_schema_graph(stats):
         x0, y0 = positions[src]
         x1, y1 = positions[dst]
 
-        # slight curve via midpoint offset for self-loops
+        # self-loops: draw a small visual loop and annotation
         if src == dst:
-            # self-loop: draw a small arc annotation only
+            ls = 0.035 # loop size
+            loop_x = [x0, x0 + ls, x0 + ls, x0 - ls, x0 - ls, x0, None]
+            loop_y = [y0, y0 + ls, y0 + ls * 2.2, y0 + ls * 2.2, y0 + ls, y0, None]
+            
+            edge_traces.append(go.Scatter(
+                x=loop_x, y=loop_y,
+                mode="lines",
+                line=dict(color="rgba(76,201,240,0.25)", width=2),
+                hoverinfo="none",
+                showlegend=False,
+            ))
+
             annots.append(dict(
-                x=x0 + 0.13, y=y0 + 0.09,
+                x=x0, y=y0 + ls * 2.2,
                 text=f"<b>{rel}</b><br><span style='color:#666;font-size:10px'>{rels_data.get(rel, 0):,}</span>",
                 showarrow=False,
                 font=dict(size=9, color="#4cc9f0"),
