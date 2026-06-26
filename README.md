@@ -2,6 +2,10 @@
 
 A queryable Neo4j knowledge graph built from [MITRE ATLAS](https://atlas.mitre.org) — tactics, techniques, sub-techniques, mitigations, real-world case studies, and cross-source enrichments like the OWASP LLM Top 10. The project includes an interactive Streamlit application to visually explore and query the graph.
 
+## Demo
+
+<video src="assets/DEMO.mp4" controls width="100%"></video>
+
 ## Setup & Installation
 
 1. **Install Docker** (for running Neo4j locally)
